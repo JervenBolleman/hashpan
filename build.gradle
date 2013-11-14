@@ -11,6 +11,6 @@ sourceSets {
     }
 }
 
-mainClassName = 'com.shemnon.hashpan.ExaminePANs'
+mainClassName = 'com.shemnon.hashpan.SearchHashesForPANs'
 sourceCompatibility = '1.8'
 
