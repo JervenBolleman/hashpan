@@ -38,7 +38,8 @@ public class SearchHashesForPANs {
         //   * print out hits
         
         prefixes.parallelStream().forEach(prefix ->
-                LongStream.range(0, 999999999)
+                LongStream.rangeClosed(0, 999999999)
+                        .parallel()
                         .mapToObj(l -> createPAN(prefix, l))
                         .map(s -> new String[]{sha1(s), s})
                         .filter(s -> hashesSet.contains(s[0]))
