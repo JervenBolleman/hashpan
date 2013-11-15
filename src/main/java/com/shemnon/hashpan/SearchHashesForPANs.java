@@ -39,14 +39,16 @@ public class SearchHashesForPANs {
         
         prefixes.parallelStream().forEach(prefix ->
                 LongStream.range(0, 999999999)
-                        .<String>mapToObj(l -> {
-                            String postfix = "000000000" + l;
-                            String s = prefix + postfix.substring(postfix.length() - 9);
-                            return s + luhn16CheckDigit(s);
-                        })
+                        .mapToObj(l -> createPAN(prefix, l))
                         .map(s -> new String[]{sha1(s), s})
                         .filter(s -> hashesSet.contains(s[0]))
                         .forEach(s -> System.out.println("card# - " + s[1] + " - hash " + s[0])));
+    }
+
+    private static String createPAN(String prefix, long l) {
+        String postfix = "000000000" + l;
+        String s = prefix + postfix.substring(postfix.length() - 9);
+        return s + luhn16CheckDigit(s);
     }
 
     private static List<String> getPANs() {
