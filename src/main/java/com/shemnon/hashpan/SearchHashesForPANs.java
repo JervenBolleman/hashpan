@@ -1,11 +1,11 @@
 package com.shemnon.hashpan;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.Base64;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
@@ -18,28 +18,25 @@ public class SearchHashesForPANs {
 
     public static void main(String... arg) {
 
-        // get the data
-        List<String> pans = getPANs();
-        List<String> hashesList = getHashes();
-        Set<String> hashesSet = new HashSet<>(hashesList);
-
-
-        // extract all of the 6 digit prefixes from the known PANs
-        List<String> prefixes = pans.stream()
-                .map(s -> s.substring(0, 6))
-                .distinct()
-                .collect(Collectors.toList());
+        Set<String> hashesSet =
+                new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/hashes.txt")))
+                        .lines()
+                        .collect(Collectors.toSet());
         
-        // For each prefix, 
-        // * walk through all billion accounts
+        // for each hacker PAN
+        // * extract the IIN prefix
+        // * Eliminate duplicates
+        // * walk through on billion possible accounts
         //   * create a card number with a luhn check digit
         //   * hash it
         //   * check against the list of hashes
         //   * print out hits
         
-        prefixes.parallelStream().forEach(prefix ->
-                LongStream.rangeClosed(0, 999999999)
-                        .parallel()
+        new BufferedReader(new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/pans.txt")))).lines()
+                .map(s -> s.substring(0, 6))
+                .distinct()
+                .forEach(prefix -> LongStream.rangeClosed(0, 999999999)
+                        //.parallel() // to scale across all cores uncomment
                         .mapToObj(l -> createPAN(prefix, l))
                         .map(s -> new String[]{sha1(s), s})
                         .filter(s -> hashesSet.contains(s[0]))
@@ -50,34 +47,6 @@ public class SearchHashesForPANs {
         String postfix = "000000000" + l;
         String s = prefix + postfix.substring(postfix.length() - 9);
         return s + luhn16CheckDigit(s);
-    }
-
-    private static List<String> getPANs() {
-        List<String> pans = new ArrayList<>(1024);
-
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/pans.txt")))) {
-            String s;
-            while ((s = br.readLine()) != null) {
-                pans.add(s);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return pans;
-    }
-
-    private static List<String> getHashes() {
-        List<String> pans = new ArrayList<>(1024);
-
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/hashes.txt")))) {
-            String s;
-            while ((s = br.readLine()) != null) {
-                pans.add(s);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return pans;
     }
 
     static int[] doubles = {0, 2, 4, 6, 8, 1, 3, 5, 7, 9};
