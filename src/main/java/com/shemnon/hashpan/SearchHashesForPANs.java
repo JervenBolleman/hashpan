@@ -38,13 +38,14 @@ public class SearchHashesForPANs {
             long start = System.currentTimeMillis();
             new BufferedReader(new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/pans.txt")))).lines()
                     .map(s -> s.substring(0, 6))
-                    .parallel() // to scale across all cores uncomment
                     .distinct()
+                    .map(s -> s.getBytes())
+                    .parallel() // to scale across all cores uncomment
                     .forEach(prefix -> LongStream.rangeClosed(0, n)
                             .mapToObj(l -> createPAN(prefix, l))
-                            .map(s -> new String[]{sha1(s), s})
+                            .map(s -> new Object[]{sha1(s), s})
                             .filter(s -> hashesSet.contains(s[0]))
-                            .forEach(s -> System.out.println("card# - " + s[1] + " - hash " + s[0])));
+                            .forEach(r -> System.out.println("card# - " + new String((byte[])r[1]) + " - hash " + r[0])));
             long stop = System.currentTimeMillis();
             Duration d = Duration.ofMillis((stop - start) * 1_000_000_000 / n);
             double perHashMicroSec = ((stop - start) * 1_000_000.0 / n / 73);
@@ -53,10 +54,17 @@ public class SearchHashesForPANs {
     }
         
 
-    private static String createPAN(String prefix, long l) {
-        String postfix = "000000000" + l;
-        String s = prefix + postfix.substring(postfix.length() - 9);
-        return s + luhn16CheckDigit(s);
+    private static byte[] createPAN(byte[] prefix, long l) {
+        byte[] result = new byte[] {'0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'};
+        System.arraycopy(prefix, 0, result, 0, 6);
+        int pos = 14;
+        while (l > 0) {
+            result[pos--] = (byte) ((byte) (l % 10) + ((byte)'0'));
+            l /= 10;
+        }
+        
+        result[15] = (byte) (luhn16CheckDigit(result) + '0');
+        return result;
     }
 
     static int[] doubles = {0, 2, 4, 6, 8, 1, 3, 5, 7, 9};
@@ -64,8 +72,7 @@ public class SearchHashesForPANs {
     /**
      * Lunh algorithm checksub digit on a 15 digit string
      */
-    public static int luhn16CheckDigit(String s) {
-        char[] c = s.toCharArray();
+    public static int luhn16CheckDigit(byte[] c) {
         int sum = doubles[c[0] - '0'] +
                 c[1] - '0' +
                 doubles[c[2] - '0'] +
@@ -85,9 +92,8 @@ public class SearchHashesForPANs {
     }
 
 
-    public static String sha1(String s) {
+    public static String sha1(byte[] card) {
         SHA1Digest sha1Digester = new SHA1Digest();
-        byte[] card = s.getBytes();
         sha1Digester.update(card, 0, card.length);
         byte[] hash = new byte[20];  
         sha1Digester.doFinal(hash, 0);
