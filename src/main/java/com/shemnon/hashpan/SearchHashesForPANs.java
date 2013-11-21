@@ -1,9 +1,9 @@
 package com.shemnon.hashpan;
 
+import org.bouncycastle.crypto.digests.SHA1Digest;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -34,9 +34,9 @@ public class SearchHashesForPANs {
         
         new BufferedReader(new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/pans.txt")))).lines()
                 .map(s -> s.substring(0, 6))
+                .parallel() // to scale across all cores uncomment
                 .distinct()
                 .forEach(prefix -> LongStream.rangeClosed(0, 999999999)
-                        //.parallel() // to scale across all cores uncomment
                         .mapToObj(l -> createPAN(prefix, l))
                         .map(s -> new String[]{sha1(s), s})
                         .filter(s -> hashesSet.contains(s[0]))
@@ -76,10 +76,12 @@ public class SearchHashesForPANs {
 
 
     public static String sha1(String s) {
-        try {
-            return Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-1").digest(s.getBytes()));
-        } catch (NoSuchAlgorithmException e) {
-            return "-";
-        }
+        SHA1Digest sha1Digester = new SHA1Digest();
+        byte[] card = s.getBytes();
+        sha1Digester.update(card, 0, card.length);
+        byte[] hash = new byte[20];  
+        sha1Digester.doFinal(hash, 0);
+        
+        return Base64.getEncoder().encodeToString(hash);
     }
 }

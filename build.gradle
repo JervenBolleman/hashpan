@@ -11,6 +11,14 @@ sourceSets {
     }
 }
 
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.bouncycastle:bcprov-jdk15on:1.49'
+}
+
 mainClassName = 'com.shemnon.hashpan.SearchHashesForPANs'
 sourceCompatibility = '1.8'
 
