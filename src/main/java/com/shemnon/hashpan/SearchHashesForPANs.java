@@ -23,6 +23,11 @@ public class SearchHashesForPANs {
                 new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/hashes.txt")))
                         .lines()
                         .collect(Collectors.toSet());
+        boolean[] quickCheck = new boolean[65536];
+        for (String s : hashesSet) {
+            byte[] hash = Base64.getDecoder().decode(s);
+            quickCheck[(hash[0] << 8 | hash[1]) & 0XFFFF] = true;
+        }
         
         // for each hacker PAN
         // * extract the IIN prefix
@@ -43,9 +48,13 @@ public class SearchHashesForPANs {
                     .parallel() // to scale across all cores uncomment
                     .forEach(prefix -> LongStream.rangeClosed(0, n)
                             .mapToObj(l -> createPAN(prefix, l))
-                            .map(s -> new Object[]{sha1(s), s})
-                            .filter(s -> hashesSet.contains(s[0]))
-                            .forEach(r -> System.out.println("card# - " + new String((byte[])r[1]) + " - hash " + r[0])));
+                            .map(s -> new byte[][]{sha1(s), s})
+                            .filter(s -> {
+                                byte[] hash = s[0];
+                                return quickCheck[(hash[0] << 8 | hash[1]) & 0XFFFF]
+                                        && hashesSet.contains(Base64.getEncoder().encodeToString(hash));
+                            })
+                            .forEach(r -> System.out.println("card# - " + new String((byte[]) r[1]) + " - hash " + Base64.getEncoder().encodeToString(r[0]))));
             long stop = System.currentTimeMillis();
             Duration d = Duration.ofMillis((stop - start) * 1_000_000_000 / n);
             double perHashMicroSec = ((stop - start) * 1_000_000.0 / n / 73);
@@ -92,12 +101,12 @@ public class SearchHashesForPANs {
     }
 
 
-    public static String sha1(byte[] card) {
+    public static byte[] sha1(byte[] card) {
         SHA1Digest sha1Digester = new SHA1Digest();
         sha1Digester.update(card, 0, card.length);
         byte[] hash = new byte[20];  
         sha1Digester.doFinal(hash, 0);
         
-        return Base64.getEncoder().encodeToString(hash);
+        return hash;
     }
 }
