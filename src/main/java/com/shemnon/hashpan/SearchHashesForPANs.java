@@ -23,10 +23,12 @@ public class SearchHashesForPANs {
                 new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/hashes.txt")))
                         .lines()
                         .collect(Collectors.toSet());
-        boolean[] quickCheck = new boolean[65536];
+        boolean[][] quickCheck = new boolean[20][256];
         for (String s : hashesSet) {
             byte[] hash = Base64.getDecoder().decode(s);
-            quickCheck[(hash[0] << 8 | hash[1]) & 0XFFFF] = true;
+            for (int i = 0; i < 20; i++) {
+                quickCheck[i][hash[i]&0xff] = true;
+            }
         }
         
         // for each hacker PAN
@@ -39,6 +41,8 @@ public class SearchHashesForPANs {
         //   * print out hits
 
         for (int n : new int[] {10_000, 10_000, 10_000, 10_000, 100_000, 1_000_000, 100_000, 10_000, 10_000, 10_000, 10_000}) {
+//        for (int n : new int[] {1_000_000_000}) {
+        
 
             long start = System.currentTimeMillis();
             new BufferedReader(new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/pans.txt")))).lines()
@@ -51,14 +55,18 @@ public class SearchHashesForPANs {
                             .map(s -> new byte[][]{sha1(s), s})
                             .filter(s -> {
                                 byte[] hash = s[0];
-                                return quickCheck[(hash[0] << 8 | hash[1]) & 0XFFFF]
-                                        && hashesSet.contains(Base64.getEncoder().encodeToString(hash));
+                                for (int i = 0; i < 20; i++) {
+                                    if (!quickCheck[i][hash[i] & 0xff]) {
+                                        return false;
+                                    }
+                                }
+                                return hashesSet.contains(Base64.getEncoder().encodeToString(hash));
                             })
                             .forEach(r -> System.out.println("card# - " + new String((byte[]) r[1]) + " - hash " + Base64.getEncoder().encodeToString(r[0]))));
             long stop = System.currentTimeMillis();
             Duration d = Duration.ofMillis((stop - start) * 1_000_000_000 / n);
             double perHashMicroSec = ((stop - start) * 1_000_000.0 / n / 73);
-            System.out.println(n + " @ " + perHashMicroSec +  "µs/hash - estimated run " + d.toString());
+            System.out.println(n + " @ " + perHashMicroSec +  "µs/hash - complete run " + d.toString());
         }
     }
         
