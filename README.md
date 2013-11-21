@@ -11,7 +11,7 @@ I am doing a brute forces attack, as a preimage attack on SHA-1 is well beyond
 the skills and access to computational resources of a typical working software 
 engineer.
 
-On a MacBook Air Mid 2012 execution is on the order of 2ns per credit card 
+On a MacBook Air Mid 2012 execution is on the order of 2µs per credit card 
 number, so my final run would be 44 to 45 hours on a single core, depending 
 on how well my fan holds out, or 11 hours using all 4 functional units.
 Running this on a commercial graphics card would be a walk in the park.
@@ -86,9 +86,9 @@ after one billion cores since that is the total count of the elements. ;)
 Results
 =======
 
-1017 of the 1022 cards were found in 11 hrs 32 mins 56.293.  For an average 
-of about 0.569 ns/hash amortized over all functional units, or 1.755 megahertz.  
-At this rate each IIN takes slightly under 10 minutes to explore.
+1017 of the 1022 cards were found in 11 hrs 32 min 56.293 sec.  For an average 
+of about 0.569 µs/hash amortized over all functional units, or 1.755 megahertz.  
+At this rate each IIN takes about nine and a half minutes to explore.
 
 The hashes not found are
 
