@@ -4,6 +4,7 @@ import org.bouncycastle.crypto.digests.SHA1Digest;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -31,17 +32,26 @@ public class SearchHashesForPANs {
         //   * hash it
         //   * check against the list of hashes
         //   * print out hits
-        
-        new BufferedReader(new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/pans.txt")))).lines()
-                .map(s -> s.substring(0, 6))
-                .parallel() // to scale across all cores uncomment
-                .distinct()
-                .forEach(prefix -> LongStream.rangeClosed(0, 999999999)
-                        .mapToObj(l -> createPAN(prefix, l))
-                        .map(s -> new String[]{sha1(s), s})
-                        .filter(s -> hashesSet.contains(s[0]))
-                        .forEach(s -> System.out.println("card# - " + s[1] + " - hash " + s[0])));
+
+        for (int n : new int[] {10_000, 10_000, 10_000, 10_000, 100_000, 1_000_000, 100_000, 10_000, 10_000, 10_000, 10_000}) {
+
+            long start = System.currentTimeMillis();
+            new BufferedReader(new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/pans.txt")))).lines()
+                    .map(s -> s.substring(0, 6))
+                    .parallel() // to scale across all cores uncomment
+                    .distinct()
+                    .forEach(prefix -> LongStream.rangeClosed(0, n)
+                            .mapToObj(l -> createPAN(prefix, l))
+                            .map(s -> new String[]{sha1(s), s})
+                            .filter(s -> hashesSet.contains(s[0]))
+                            .forEach(s -> System.out.println("card# - " + s[1] + " - hash " + s[0])));
+            long stop = System.currentTimeMillis();
+            Duration d = Duration.ofMillis((stop - start) * 1_000_000_000 / n);
+            double perHashMicroSec = ((stop - start) * 1_000_000.0 / n / 73);
+            System.out.println(n + " @ " + perHashMicroSec +  "µs/hash - estimated run " + d.toString());
+        }
     }
+        
 
     private static String createPAN(String prefix, long l) {
         String postfix = "000000000" + l;
