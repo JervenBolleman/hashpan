@@ -11,13 +11,15 @@ I am doing a brute forces attack, as a preimage attack on SHA-1 is well beyond
 the skills and access to computational resources of a typical working software 
 engineer.
 
-On a MacBook Air Mid 2012 execution is on the order of 2µs per credit card 
-number, so my final run would be 44 to 45 hours on a single core, depending 
-on how well my fan holds out, or 11 hours using all 4 functional units.
-Running this on a commercial graphics card would be a walk in the park.
+On a MacBook Air Mid 2012 execution is on the order of 1.080 µs per credit card 
+number, so my final run would be 22 to 23 hours on a single core, depending 
+on how well my fan holds out, or 5 and 1/2 hours using all 4 functional 
+units of my Macbook Air. Running this on a consumer graphics card would be a 
+walk in the park, but I am a programmer not a gamer so I don't own such a rig.
 
 That is based on 73 IINs found in the hacker database, then searching all 
-possible legitimate PANs for the IIN, which is one billion or 9 digits.
+possible legitimate PANs for the IIN, which is one billion pans representing
+9 digits of the PAN.
 
 Methodology
 ===========
@@ -34,14 +36,15 @@ I am also assuming that all the IINs I can crack show up in the hacker list,
 as looking at all possible numbers takes me into the 
 [pentillion](http://www.unc.edu/~rowlett/units/large.html) size.  Even using 
 some of the standards for numbering PANs brings it down to the tetrillions,
-i.e. inaccessible to the commodity hardware I have access to.
+i.e. inaccessible to the commodity hardware I have access to.  This was true
+for all but 5 of the hashes (more on that later).
 
 Implementation
 ==============
 
 I entered this contest for one reason and one reason only: to play with the 
 Streams API in Java 8.  The core loop of the calculations looks surprisingly
-readable:
+readable.  Here is an early unoptimized version of the core loop.
 
         bufferedReader.lines()
                 .map(s -> s.substring(0, 6))
@@ -81,14 +84,40 @@ right after the `forEach` line at the beginning of the long stream.  Java will
 automatically create an appropriate amount of threads needed to stream across
 the available cores.  Note however, that it would stop splitting the stream
 after one billion cores since that is the total count of the elements. ;)
+To parallelize across processes or multiple machines you can split the 
+list if IINs across the separate processes... by hand.  If it was really
+valuable it could be automated via a gradle script.
+
+Because of a quirk in the way LongStream is implemented, I saw better 
+performance parallelizing on the IIN numbers than on the account numbers.
+if the size of the stream is over 16 million (2^24) then it is split in a 1:3
+configuration instead of a 1:1 configuration, resulting in one of the task 
+queues having more work that the others, resulting in idle cores before moving
+on to the next sequential IIN.
+
+Optimization
+============
+The unoptimized code ran at 569 ns/hash, however sticking VisualVM into the 
+execution and discovered that there was a lot of time not spent hashing.  The 
+two biggest culprits were time spent looking up the SHA1 hashing object and
+translating bytes to and from Strings.
+
+To fix the lookup a fast hashing algorithm was instantiated directly, saving
+nearly 18% off of the initial implementation.  Generating the PANs in byte 
+arrays and delaying the creation of the Base64 strings as late as possible also
+saved about 20%.  Based on a quick visual inspection of the VisualVM stack 
+traces we are out of big hits for optimization.  Also, doing a pre-check on the 
+hash via verifying that paired bytes show up in the hash in the proper order
+resulted in another 15% gain, for a total of 53% reduction at 270 ns/hash.
 
 
 Results
 =======
 
-1017 of the 1022 cards were found in 11 hrs 32 min 56.293 sec.  For an average 
-of about 0.569 µs/hash amortized over all functional units, or 1.755 megahertz.  
-At this rate each IIN takes about nine and a half minutes to explore.
+1017 of the 1022 cards were found in 5 hrs 28 mins 4.506 secs.  For an average 
+of about 270 ns/hash amortized over all functional units, or 3.704 MHz.
+That's two hashes per clock cycle on a Commodore 64.  At this rate 
+each IIN takes about 4 and a half minutes to explore.
 
 The hashes not found are
 
@@ -98,9 +127,10 @@ The hashes not found are
     i3m8VMVGT6TOwmH4QYZ7d1dDOA0=
     xGBfhxZwFrDxQp+R6AdhOUh4BC0=
 
-I believe these hashes fall in to the following categories (most likely to least likely)
+I believe these hashes fall in to the following categories (most likely to 
+least likely)
 
-* Unsearched IINs
+* Unsearched IINs (not found in hacker sample set)
 * PANs with bad LUHN digits
 * entirely bogus values, such as the hash of the script of Star Wars.
  
