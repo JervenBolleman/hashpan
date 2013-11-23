@@ -44,9 +44,6 @@ public class SearchHashesForPANs {
                         .map(s -> new byte[][]{sha1(s), s})
                         .filter(SearchHashesForPANs::matchesHash)
                         .forEach(r -> System.out.println(Base64.getEncoder().encodeToString(r[0]) + " - " + new String(r[1]))));
-        
-        System.out.println("Undecyphered hashes:");
-        hashesSet.stream().forEach(System.out::println);
     }
 
     private static void prepareHashes() {
@@ -72,7 +69,7 @@ public class SearchHashesForPANs {
             }
         }
         // now we can do the string lookup
-        return hashesSet.remove(Base64.getEncoder().encodeToString(hash));
+        return hashesSet.contains(Base64.getEncoder().encodeToString(hash));
     }
 
     private static byte[] createPAN(byte[] prefix, long l) {
