@@ -7,22 +7,25 @@ context.  It was fun, and surprisingly it worked very well.
 Execution Time
 ==============
 
-I am doing a brute forces attack, as a preimage attack on SHA-1 is well beyond
-the skills and access to computational resources of a typical working software 
-engineer.
+On a MacBook Air (Mid 2012, 1.8Ghz Core i5) 1017 of the 1022 cards were found 
+in 5 hrs 28 mins 4.506 secs.  For an average of about 270 ns/hash amortized 
+over all functional units, or 3.704 MHz.  That's two hashes per clock cycle 
+on a Commodore 64.  
 
-On a MacBook Air Mid 2012 execution is on the order of 1.080 µs per credit card 
-number, so my final run would be 22 to 23 hours on a single core, depending 
-on how well my fan holds out, or 5 and 1/2 hours using all 4 functional 
-units of my Macbook Air. Running this on a consumer graphics card would be a 
-walk in the park, but I am a programmer not a gamer so I don't own such a rig.
+If we are restricted to one core the execution time would be about 1.080 µs 
+per credit card number, so a single core run would take 22 to 23 hours. 
 
 That is based on 73 IINs found in the hacker database, then searching all 
 possible legitimate PANs for the IIN, which is one billion pans representing
-9 digits of the PAN.
+9 digits of the PAN. At this rate each IIN takes about 4 and a half minutes 
+to explore (across all 4 cores).
 
 Methodology
 ===========
+
+I am doing a brute forces attack, as a preimage attack on SHA-1 is well beyond
+the skills and access to computational resources of a typical working software 
+engineer.
 
 I am making a few assumptions, first is that the same program that created the 
 hacker known numbers is also the same input program that generated the hashes.  
@@ -30,7 +33,9 @@ So all the credit cards I am looking for are 16 digits, with 6 digits for IIN
 and a Luhn check digit.  This is based on my 
 [extensive research](http://en.wikipedia.org/wiki/Bank_card_number) on the 
 subject and I admit I am missing Diners Club cards and American Express, 
-although I wouldn't exactly say I'm missing them.
+although I wouldn't exactly say I'm missing them.  But they are not in the 
+hacker list which is presented to be representative of the target data.
+
 
 I am also assuming that all the IINs I can crack show up in the hacker list,
 as looking at all possible numbers takes me into the 
@@ -95,6 +100,20 @@ configuration instead of a 1:1 configuration, resulting in one of the task
 queues having more work that the others, resulting in idle cores before moving
 on to the next sequential IIN.
 
+One other tweak is that the hacker list of PANs is presumed to be representative
+of the frequencies of the IINs found in the rest of the data set.  An after
+the crack analysis shows it is close enough with some outliers.  In order to 
+"front load" the generation of the hashes the IINs are considered in the 
+frequency order of the hacker list of PANs, hence if the execution is aborted
+earlier then we will likely have the most possible hashes.  
+
+This presented some  challenges with the Java Streams APIs since the parallel 
+implementation will partition the ordered list into front and back partitions, 
+and have the other worker threads start more or less in the middle.  So I 
+stored the IINs in a blocking queue and pulled the "work ticket" just after the
+parallel split in the stream.  This resulted in the desired effect of more
+frequently used IINs being searched first.
+
 Optimization
 ============
 The unoptimized code ran at 569 ns/hash, however sticking VisualVM into the 
@@ -113,11 +132,6 @@ resulted in another 15% gain, for a total of 53% reduction at 270 ns/hash.
 
 Results
 =======
-
-1017 of the 1022 cards were found in 5 hrs 28 mins 4.506 secs.  For an average 
-of about 270 ns/hash amortized over all functional units, or 3.704 MHz.
-That's two hashes per clock cycle on a Commodore 64.  At this rate 
-each IIN takes about 4 and a half minutes to explore.
 
 The hashes not found are
 

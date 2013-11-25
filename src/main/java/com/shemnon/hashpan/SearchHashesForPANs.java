@@ -6,7 +6,10 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.Base64;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 /**
@@ -23,24 +26,35 @@ public class SearchHashesForPANs {
 
         prepareHashes();
 
+        // Why the blocking queue?  An array based stream .parallel call breaks
+        // the stream into multiple adjacent partitions and has each parallel
+        // thread do one partition whereas we want the items earlier in the 
+        // list to be considered before any of the others.  
+        BlockingQueue<byte[]> sortedIINs = new LinkedBlockingQueue<>();
+        
+        // Group the IINs and sort them by frequency
+        // store them in a blocking queue
+        new BufferedReader(new BufferedReader(new InputStreamReader(System.in))).lines()
+                .collect(Collectors.<String, String>groupingBy(s -> s.substring(0, 6)))
+                .entrySet().stream()
+                .map(e -> new Object[] {e.getKey().getBytes(), e.getValue().size()})
+                .sorted((l, r) -> -Integer.compare((Integer)l[1], (Integer)r[1]))
+                //.peek(v -> System.out.println(new String((byte[])v[0]) + " - " + v[1]))
+                .forEach(v -> sortedIINs.add((byte[]) v[0]));
+        
+        
         // for each hacker PAN
-        // * extract the IIN prefix
-        // * Eliminate duplicates
-        // * convert the IIN to bytes for performance
         // * walk through on billion possible accounts
         //   * create a card number with a luhn check digit
         //   * hash it
         //   * check against the list of hashes
         //   * print out hits
-
-        new BufferedReader(new BufferedReader(new InputStreamReader(System.in))).lines()
-                .map(s -> s.substring(0, 6))
-                .distinct()
-                .map(s -> s.getBytes())
+        IntStream.range(0, sortedIINs.size())
                 .parallel() // to scale across up to 73 cores cores uncomment
+                .mapToObj(i -> takeFromQueue(sortedIINs))
                 .forEach(prefix -> LongStream.rangeClosed(0, 999_999_999)
                         //.parallel() // to scale across all cores cores uncomment
-                        .mapToObj(l -> createPAN(prefix, l))
+                        .mapToObj(l -> createPAN((byte[]) prefix, l))
                         .map(s -> new byte[][]{sha1(s), s})
                         .filter(SearchHashesForPANs::matchesHash)
                         .forEach(r -> System.out.println(Base64.getEncoder().encodeToString(r[0]) + " - " + new String(r[1]))));
@@ -50,7 +64,7 @@ public class SearchHashesForPANs {
         hashesSet = new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/hashes.txt")))
                 .lines()
                 .collect(Collectors.toSet());
-        // create the paird bytes array
+        // create the paired bytes array
         for (String s : hashesSet) {
             byte[] hash = Base64.getDecoder().decode(s);
             for (int i = 0; i < 19; i++) {
@@ -59,6 +73,15 @@ public class SearchHashesForPANs {
         }
     }
 
+    private static <T> T takeFromQueue(BlockingQueue<T> queue) {
+        try {
+            return queue.take();
+        } catch (InterruptedException ignore) {
+            // Blech.... checked exceptions
+            // it seemed like a good idea at the time...
+            return null;
+        }
+    }
 
     private static boolean matchesHash(byte[][] s) {
         byte[] hash = s[0];
@@ -97,6 +120,8 @@ public class SearchHashesForPANs {
      * Lunh algorithm.  Returns the checksum digit on a 15 digit string
      */
     public static int luhn16CheckDigit(byte[] c) {
+        // unwrapped for speed?
+        // Yes it was, (^c ^v){7} was quicker than contemplating the loop
         int sum = doubles[c[0] - '0'] +
                 c[1] - '0' +
                 doubles[c[2] - '0'] +
@@ -117,6 +142,9 @@ public class SearchHashesForPANs {
 
 
     public static byte[] sha1(byte[] card) {
+        // Digesters are not re-entrant, so we cannot share.
+        // Direct construction was way quicker than the lookup
+        // and marginally faster than thread locals (it's a simple object).
         SHA1Digest sha1Digester = new SHA1Digest();
         sha1Digester.update(card, 0, card.length);
         byte[] hash = new byte[20];
