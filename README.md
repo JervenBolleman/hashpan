@@ -8,12 +8,12 @@ Execution Time
 ==============
 
 On a MacBook Air (Mid 2012, 1.8Ghz Core i5) 1017 of the 1022 cards were found 
-in 5 hrs 28 mins 4.506 secs.  For an average of about 270 ns/hash amortized 
-over all functional units, or 3.704 MHz.  That's two hashes per clock cycle 
+in 5 hrs 7 mins 55.396.  For an average of about 253 ns/hash amortized 
+over all functional units, or 3.953 MHz.  That's two hashes per clock cycle 
 on a Commodore 64.  
 
-If we are restricted to one core the execution time would be about 1.080 µs 
-per credit card number, so a single core run would take 22 to 23 hours. 
+If we are restricted to one core the execution time would be about 1.012 µs 
+per credit card number, so a single core run would take 21 to 22 hours. 
 
 That is based on 73 IINs found in the hacker database, then searching all 
 possible legitimate PANs for the IIN, which is one billion pans representing
@@ -127,7 +127,7 @@ arrays and delaying the creation of the Base64 strings as late as possible also
 saved about 20%.  Based on a quick visual inspection of the VisualVM stack 
 traces we are out of big hits for optimization.  Also, doing a pre-check on the 
 hash via verifying that paired bytes show up in the hash in the proper order
-resulted in another 15% gain, for a total of 53% reduction at 270 ns/hash.
+resulted in another 15% gain, for a total of 57% reduction at 253 ns/hash.
 
 
 Results
