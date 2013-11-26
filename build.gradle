@@ -10,14 +10,6 @@ sourceSets {
     }
 }
 
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    compile 'org.bouncycastle:bcprov-jdk15on:1.49'
-}
-
 task hashes (type: JavaExec) {
     main = 'com.shemnon.hashpan.SearchHashesForPANs'
     standardInput = new FileInputStream ('data/pans.txt')

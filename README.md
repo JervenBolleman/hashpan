@@ -8,8 +8,8 @@ Execution Time
 ==============
 
 On a MacBook Air (Mid 2012, 1.8Ghz Core i5) 1017 of the 1022 cards were found 
-in 5 hrs 7 mins 55.396.  For an average of about 253 ns/hash amortized 
-over all functional units, or 3.953 MHz.  That's two hashes per clock cycle 
+in 4 hrs 36 mins 44.701 secs.  For an average of about 227 ns/hash amortized 
+over all functional units, or 4.405 MHz.  That's two hashes per clock cycle 
 on a Commodore 64.  
 
 If we are restricted to one core the execution time would be about 1.012 µs 
@@ -17,7 +17,7 @@ per credit card number, so a single core run would take 21 to 22 hours.
 
 That is based on 73 IINs found in the hacker database, then searching all 
 possible legitimate PANs for the IIN, which is one billion pans representing
-9 digits of the PAN. At this rate each IIN takes about 4 and a half minutes 
+9 digits of the PAN. At this rate each IIN takes about 3 and three quarter minutes 
 to explore (across all 4 cores).
 
 Methodology
@@ -127,13 +127,26 @@ arrays and delaying the creation of the Base64 strings as late as possible also
 saved about 20%.  Based on a quick visual inspection of the VisualVM stack 
 traces we are out of big hits for optimization.  Also, doing a pre-check on the 
 hash via verifying that paired bytes show up in the hash in the proper order
-resulted in another 15% gain, for a total of 57% reduction at 253 ns/hash.
+resulted in another 15% gain, for a total of 53% reduction at 253 ns/hash.
+
+But one of the morals of Optimization is to prove your assumptions.  I had
+assumed that the use of ThreadLocal and the built in SHA-1 impl would be 
+slower than BouncyCastle.  Apparently [I was 
+wrong](http://bouncy-castle.1462172.n4.nabble.com/SHA1-speed-and-correctness-td4656567.html)
+and the Sun imple is faster because of reasons internal to the JVM.  Coupling
+this with a thread local digester (again, made easy by lambdas) made the 
+execution time 227 ns/hash, adding yet another 7% off of the original time 
+for a total reduction of 60%.
+ 
+Yes, 60% of the time from the original implementation was in essence wasted
+effort.
 
 
 Results
 =======
 
-The hashes not found are
+Not all of the hashes were decoded, 99.5% of the hashes were found (1017 of 1022) were found.
+The hashes not decoded were
 
     1OQUCrrAT48dL6ELahyaQ9qkN88=
     J6daTQI88gkWuxpTH4sSB6YUjBQ=
@@ -149,7 +162,10 @@ least likely)
 * entirely bogus values, such as the hash of the script of Star Wars.
  
 As a subclass of unsearched IINs are those that are not 16 digits in length.  
-And even then only the IINs in the hackers data set were searched.  
+And even then only the IINs in the hackers data set were searched.  If the IINs
+of the missing hashes were made known, and they were 16 digit credit cards with 
+valid LUHNs then they could be resolved in less than a half an hour (less than 
+15 minutes if at least one IIN was shared).
 
 It is conceivable I could run this against the whole known set of IINs, but 
 that numbers into the tens of thousands, i.e. making the search space too 
@@ -158,3 +174,6 @@ in the hacker data set are predominately bogus when cross referenced with
 [publicly accessible 
 data](http://en.wikipedia.org/wiki/List_of_Bank_Identification_Numbers}, so
 simply searching against all legitimate IINs would similarly be pointless.
+
+However since over 99% of the hashes were recovered, this is more than enough
+data for a hacker to cause problems with the recovered data.

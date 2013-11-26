@@ -1,9 +1,9 @@
 package com.shemnon.hashpan;
 
-import org.bouncycastle.crypto.digests.SHA1Digest;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -141,15 +141,26 @@ public class SearchHashesForPANs {
     }
 
 
+    static ThreadLocal<MessageDigest> digest = ThreadLocal.withInitial(() -> {
+        try {
+            return MessageDigest.getInstance("SHA-1");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return null;
+        }
+    });
+    
     public static byte[] sha1(byte[] card) {
-        // Digesters are not re-entrant, so we cannot share.
-        // Direct construction was way quicker than the lookup
-        // and marginally faster than thread locals (it's a simple object).
-        SHA1Digest sha1Digester = new SHA1Digest();
-        sha1Digester.update(card, 0, card.length);
-        byte[] hash = new byte[20];
-        sha1Digester.doFinal(hash, 0);
+        return digest.get().digest(card);
 
-        return hash;
+//        // Digesters are not re-entrant, so we cannot share.
+//        // Direct construction was way quicker than the lookup
+//        // and marginally faster than thread locals (it's a simple object).
+//        SHA1Digest sha1Digester = new SHA1Digest();
+//        sha1Digester.update(card, 0, card.length);
+//        byte[] hash = new byte[20];
+//        sha1Digester.doFinal(hash, 0);
+//
+//        return hash;
     }
 }
