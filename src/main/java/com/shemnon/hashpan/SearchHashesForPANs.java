@@ -50,10 +50,10 @@ public class SearchHashesForPANs {
         //   * check against the list of hashes
         //   * print out hits
         IntStream.range(0, sortedIINs.size())
-                .parallel() // to scale across up to 73 cores cores uncomment
+                .parallel() // for simple scaling across up to 73 cores cores uncomment
                 .mapToObj(i -> takeFromQueue(sortedIINs))
                 .forEach(prefix -> LongStream.rangeClosed(0, 999_999_999)
-                        //.parallel() // to scale across all cores cores uncomment
+                        //.parallel() // to scale well across more than 16 cores uncomment
                         .mapToObj(l -> createPAN((byte[]) prefix, l))
                         .map(s -> new byte[][]{sha1(s), s})
                         .filter(SearchHashesForPANs::matchesHash)
