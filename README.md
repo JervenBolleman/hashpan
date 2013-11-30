@@ -121,25 +121,29 @@ execution and discovered that there was a lot of time not spent hashing.  The
 two biggest culprits were time spent looking up the SHA1 hashing object and
 translating bytes to and from Strings.
 
-To fix the lookup a fast hashing algorithm was instantiated directly, saving
-nearly 18% off of the initial implementation.  Generating the PANs in byte 
-arrays and delaying the creation of the Base64 strings as late as possible also
-saved about 20%.  Based on a quick visual inspection of the VisualVM stack 
-traces we are out of big hits for optimization.  Also, doing a pre-check on the 
-hash via verifying that paired bytes show up in the hash in the proper order
-resulted in another 15% gain, for a total of 53% reduction at 253 ns/hash.
+Looking up a digest algorithm via the proper Java APIs every time was very 
+slow, so a fast hashing algorithm was instantiated directly (the 
+bouncy castle implementation), saving nearly 18% off of the initial 
+implementation.  
+
+I then did two optimizations based on observations from JVisualVM sampling 
+monitoring.  Generating the PANs in byte arrays and delaying the creation of 
+the Base64 strings as late as possible also saved about 20%.  Then, adding a 
+variation of a bloom filter on the hash bytes to delay the creation of a 
+Base64 String and a subsequent HashMap lookup resulted in another 15% gain, 
+for a total of 53% reduction at 253 ns/hash.
 
 But one of the morals of Optimization is to prove your assumptions.  I had
 assumed that the use of ThreadLocal and the built in SHA-1 impl would be 
 slower than BouncyCastle.  Apparently [I was 
 wrong](http://bouncy-castle.1462172.n4.nabble.com/SHA1-speed-and-correctness-td4656567.html)
-and the Sun imple is faster because of reasons internal to the JVM.  Coupling
+and the Sun impl is faster because of reasons internal to the JVM.  Coupling
 this with a thread local digester (again, made easy by lambdas) made the 
 execution time 227 ns/hash, adding yet another 7% off of the original time 
 for a total reduction of 60%.
  
 Yes, 60% of the time from the original implementation was in essence wasted
-effort.
+effort.  But it did keep my workspace warm, so it wasn't entirely wasted.
 
 
 Results
