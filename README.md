@@ -36,10 +36,30 @@ Methodology
 
 I am doing a brute forces attack, as a preimage attack on SHA-1 is well beyond
 the skills and access to computational resources of a typical working software 
-engineer. I decided against rainbow table attacks since I am not an expert in
-cryptography and I desired to understand as much of the code I wrote as 
-possible. Other than the Java Streams API and a standard SHA1 encryption 
+engineer. Other than the Java 8 Streams API and a standard SHA-1 encryption 
 algorithm no external libraries of note were used.
+
+I briefly considered rainbow table attacks, but some features make this 
+inefficient.  First, the search space is only partially covered.  This can be
+mitigated with proper table configurations to obtain coverage that is by all 
+practical measures complete, but that is as much (black) art as it is science.  
+Second, the 16 byte search space is much larger than any of the pre-published 
+tables available (which tend to top out at 12), and a numeric table is uncommon
+at best.  So the generation of such a set of tables would need to be considered 
+as part of the algorithmic complexity of my solution.  While keeping these 
+tables around might be useful for a hacker ring their long term value seems 
+questionable since this contest seems aimed to show to the PCI Security 
+Standards Council that simply hashing a complete PAN is not secure enough 
+unless other techniques are also applied such as salting and key lengthening.
+([It should be noted](https://plus.google.com/+KevinOConnor7/posts/YdMxYnRRvpQ) 
+that the IINs for this exercise are fictional and appear to reflect that some 
+of them are more common than others.  Real conclusions should only be drawn 
+from real data).
+
+The advantage of an exhaustive keyspace search is that you can then be certain
+that if a key isn't found that it does not exist in the searched space.  The 
+task then is to reduce the key search space to something expressed in billions 
+rather than quadrillions.
 
 I am making a few assumptions, first is that the same program that created the 
 hacker numbers list is also the same input program that generated the hashes.  
@@ -52,10 +72,10 @@ hacker list which is presented to be representative of the target data.
 
 I am also assuming that all the IINs I can crack show up in the hacker list,
 as looking at all possible numbers takes me into the 
-[pentillion](http://www.unc.edu/~rowlett/units/large.html) size.  Even using 
-some of the standards for numbering PANs brings it down to the tetrillions,
-i.e. inaccessible to the commodity hardware I have access to.  This assumption
-was 99.5% valid, as only 5 hashes were missed.
+quadrillion key size.  Even using some of the standards for numbering PANs 
+(4xxxxx and 50xxxx-55xxxx card numbers) brings it down to the high 
+trillions, which is still inaccessible to the commodity hardware I have 
+access to.  This assumption was over 99.5% valid, as only 5 hashes were missed.
 
 Implementation
 ==============
