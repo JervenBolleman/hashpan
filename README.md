@@ -205,7 +205,7 @@ least likely)
 
 * Unsearched IINs (not found in hacker sample set)
 * PANs with bad LUHN digits
-* entirely bogus values, such as the hash of the script of Star Wars.
+* entirely bogus values, such as the hash of names of Skylanders characters.
  
 As a subclass of unsearched IINs are those that are not 16 digits in length.  
 And even then only the IINs in the hackers data set were searched.  If the IINs
@@ -218,7 +218,7 @@ that numbers into the tens of thousands, i.e. making the search space too
 large to be practical.  Compounding that problem is that nearly all the IINs 
 in the hacker data set are predominately bogus when cross referenced with 
 [publicly accessible 
-data](http://en.wikipedia.org/wiki/List_of_Bank_Identification_Numbers}, so
+data](http://en.wikipedia.org/wiki/List_of_Bank_Identification_Numbers), so
 simply searching against all legitimate IINs would similarly be pointless.
 
 However since over 99% of the hashes were recovered, this is more than enough
