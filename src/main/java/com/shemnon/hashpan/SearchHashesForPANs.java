@@ -19,8 +19,8 @@ import java.util.stream.LongStream;
 public class SearchHashesForPANs {
 
     static Set<String> hashesSet;
-    // an array of booleans indexed by byte position and word
-    static boolean[][] quickCheck = new boolean[19][65536];
+    // paired byte bloom filter
+    static boolean[][] bloomFilter = new boolean[19][65536];
 
     public static void main(String... arg) {
 
@@ -64,11 +64,11 @@ public class SearchHashesForPANs {
         hashesSet = new BufferedReader(new InputStreamReader(SearchHashesForPANs.class.getResourceAsStream("/hashes.txt")))
                 .lines()
                 .collect(Collectors.toSet());
-        // create the paired bytes array
+        // create the paired byte bloom filter
         for (String s : hashesSet) {
             byte[] hash = Base64.getDecoder().decode(s);
             for (int i = 0; i < 19; i++) {
-                quickCheck[i][(hash[i] << 8 | hash[i + 1]) & 0xffff] = true;
+                bloomFilter[i][(hash[i] << 8 | hash[i + 1]) & 0xffff] = true;
             }
         }
     }
@@ -77,7 +77,7 @@ public class SearchHashesForPANs {
         try {
             return queue.take();
         } catch (InterruptedException ignore) {
-            // Blech.... checked exceptions
+            // Yuck.... checked exceptions
             // it seemed like a good idea at the time...
             return null;
         }
@@ -85,13 +85,13 @@ public class SearchHashesForPANs {
 
     private static boolean matchesHash(byte[][] s) {
         byte[] hash = s[0];
-        // first make sure it has paired bytes in the correct place
+        // first check the bloom filter
         for (int i = 0; i < 19; i++) {
-            if (!quickCheck[i][(hash[i] << 8 | hash[i + 1]) & 0xffff]) {
+            if (!bloomFilter[i][(hash[i] << 8 | hash[i + 1]) & 0xffff]) {
                 return false;
             }
         }
-        // now we can do the string lookup
+        // now we can do the expensive string lookup
         return hashesSet.contains(Base64.getEncoder().encodeToString(hash));
     }
 
@@ -108,7 +108,7 @@ public class SearchHashesForPANs {
             l /= 10;
         }
 
-        // now add the luhn digit for this card
+        // now add the Luhn digit for this card
         result[15] = (byte) (luhn16CheckDigit(result) + '0');
         
         return result;
@@ -117,7 +117,7 @@ public class SearchHashesForPANs {
     static int[] doubles = {0, 2, 4, 6, 8, 1, 3, 5, 7, 9};
 
     /**
-     * Lunh algorithm.  Returns the checksum digit on a 15 digit string
+     * Luhn algorithm.  Returns the checksum digit on a 15 digit string
      */
     public static int luhn16CheckDigit(byte[] c) {
         // unwrapped for speed?
@@ -141,7 +141,7 @@ public class SearchHashesForPANs {
     }
 
 
-    static ThreadLocal<MessageDigest> digest = ThreadLocal.withInitial(() -> {
+    static ThreadLocal<MessageDigest> messageDigestThreadLocal = ThreadLocal.withInitial(() -> {
         try {
             return MessageDigest.getInstance("SHA-1");
         } catch (NoSuchAlgorithmException e) {
@@ -151,16 +151,6 @@ public class SearchHashesForPANs {
     });
     
     public static byte[] sha1(byte[] card) {
-        return digest.get().digest(card);
-
-//        // Digesters are not re-entrant, so we cannot share.
-//        // Direct construction was way quicker than the lookup
-//        // and marginally faster than thread locals (it's a simple object).
-//        SHA1Digest sha1Digester = new SHA1Digest();
-//        sha1Digester.update(card, 0, card.length);
-//        byte[] hash = new byte[20];
-//        sha1Digester.doFinal(hash, 0);
-//
-//        return hash;
+        return messageDigestThreadLocal.get().digest(card);
     }
 }

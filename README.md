@@ -5,15 +5,17 @@ I entered just so I could play with the Java 8 Streams API in a real world
 context.  It was fun, and surprisingly it worked very well.
 
 Execution Speed: 4.405 MegaHashes/s over 73 billion credit cards at just over
-4 and a half hours on a Mid 2012 Macbook Air.  99.5% of cards recovered.
+4 and a half hours on a Mid 2012 Macbook Air.  99.5% of cards recovered.  If 
+the calculations were restricted to a single thread about 18 hours would be 
+needed.
 
-Optimizations: Parallel streams, recycled thread local SHA1 digster, modified 
+Optimizations: Parallel streams, recycled thread local SHA1 digester, modified 
 bloom filter, removing unneeded transformations, for a total speed improvement
 of 250% (40% of original execution time).
 
-Execution will scale simply across up to 73 cores with a change in one line 
-of code. It will scale well (but not simply) across absurdly large numbers
-of cores with the change of another line of code.
+Execution scales simply across up to 73 cores. It will scale well (but not 
+simply) across absurdly large numbers of cores with the change of one line of 
+code.
 
 Execution Time
 ==============
@@ -54,7 +56,7 @@ unless other techniques are also applied such as salting and key lengthening.
 ([It should be noted](https://plus.google.com/+KevinOConnor7/posts/YdMxYnRRvpQ) 
 that the IINs for this exercise are fictional and appear to reflect that some 
 of them are more common than others.  Real conclusions should only be drawn 
-from real data).
+from real data, however).
 
 The advantage of an exhaustive keyspace search is that you can then be certain
 that if a key isn't found that it does not exist in the searched space.  The 
@@ -71,11 +73,14 @@ although I wouldn't exactly say I'm missing them.  But they are not in the
 hacker list which is presented to be representative of the target data.
 
 I am also assuming that all the IINs I can crack show up in the hacker list,
-as looking at all possible numbers takes me into the 
-quadrillion key size.  Even using some of the standards for numbering PANs 
-(4xxxxx and 50xxxx-55xxxx card numbers) brings it down to the high 
-trillions, which is still inaccessible to the commodity hardware I have 
-access to.  This assumption was over 99.5% valid, as only 5 hashes were missed.
+as looking at all possible numbers takes me into the quadrillion key size.  
+Even using some of the standards for numbering PANs (4xxxxx and 
+50xxxx-55xxxx card numbers) brings it down to the high trillions, which is 
+still inaccessible to the commodity hardware I have access to.  This assumption 
+was over 99.5% valid, as only 5 hashes were missed.  If those IINs were present 
+in the seed data but rare enough (such as 0.01% frequency or less) then this 
+assumption was entirely valid.  But because this is black box data I cannot be 
+completely sure on this.
 
 Implementation
 ==============
@@ -98,7 +103,7 @@ A narrative description matches up to the code quite nicely:
 > * for each hacker PAN
 >     * extract the IIN prefix
 >     * Eliminate duplicates
->     * walk through on billion possible accounts
+>     * for all one billion possible accounts
 >         * create a card number with a luhn check digit
 >         * hash it
 >         * check against the list of hashes
@@ -111,7 +116,7 @@ would try to create a list with a billion strings in it, then hash them,
 then try to check against the existing hashes.  Which would work only if 
 I had 64GB of RAM (or more!).
 
-But as you run this you will see hits come out in semi-regular intervals,
+But as you run this you will see hits come out in semi-regular intervals
 rather than as one big clump at the end. This shows that the Stream API is 
 taking values one at a time and walking it down the stream at a sustainable 
 pace instead of the whole wall of values hitting the stream all at one time.
@@ -124,10 +129,14 @@ automated via a gradle script.
 
 Because of a quirk in the way LongStream is implemented, I saw better 
 performance parallelizing on the IIN numbers than on the account numbers.
-if the size of the stream is over 16 million (2^24) then it is split in a 1:3
-configuration instead of a 1:1 configuration, resulting in one of the task 
-queues having more work that the others, resulting in idle cores before moving
-on to the next sequential IIN.
+The current implementation does not do an even split of the values if the 
+size of the stream is over 16 million (2^24).  The stream is split in a 1:3 
+ratio instead of a 1:1 configuration resulting in one of the task queues having 
+more work that the others which then results in cores becoming idle before 
+moving on to the next sequential IIN.  It should also be noted that the default
+1:1 split ration has a strong bias towards executing on functional units whose 
+quantity is a power of two, and the absence of idle cores would only be seen 
+along those boundaries.
 
 One other tweak is that the hacker list of PANs is presumed to be representative
 of the frequencies of the IINs found in the rest of the data set.  An after
@@ -136,20 +145,22 @@ the crack analysis shows it is close enough with some outliers.  In order to
 frequency order of the hacker list of PANs, hence if the execution is aborted
 earlier then we will likely have the most possible hashes.  
 
-This presented some  challenges with the Java Streams APIs since the parallel 
+This presented some challenges with the Java Streams APIs since the parallel 
 implementation will partition the ordered list into front and back partitions, 
 and have the other worker threads start more or less in the middle.  So I 
 stored the IINs in a blocking queue and pulled the "work ticket" just after the
 parallel split in the stream.  This resulted in the desired effect of more
-frequently used IINs being searched first.
+frequently used IINs being searched first.  Since the number of IINs is small 
+compared to the number of card numbers searched, the overhead of pulling a 
+ticket form a concurrent queue is irrelevant.
 
 Optimization
 ============
 
-The unoptimized code ran at 569 ns/hash, however sticking VisualVM into the 
-execution and discovered that there was a lot of time not spent hashing.  The 
-two biggest culprits were time spent looking up the SHA1 hashing algorithm and
-translating bytes to and from Strings.
+The unoptimized code ran at 569 ns/hash.  After sticking VisualVM into the 
+execution I discovered that there was a lot of time spent doing things other 
+than hashing.  The two biggest culprits were time spent looking up the SHA1
+hashing algorithm and translating bytes to and from Strings.
 
 Looking up a digest algorithm via the proper Java APIs every time was very 
 slow, so a fast hashing algorithm was instantiated directly (the 
