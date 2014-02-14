@@ -74,12 +74,14 @@ public class SearchHashesForPANs {
     }
 
     private static <T> T takeFromQueue(BlockingQueue<T> queue) {
-        try {
-            return queue.take();
-        } catch (InterruptedException ignore) {
-            // Yuck.... checked exceptions
-            // it seemed like a good idea at the time...
-            return null;
+        while(true){
+            try {
+                return queue.take();
+            } catch (InterruptedException ignore) {
+                //Behave nice if we are in a ThreadWorkerPool 
+                //see www.ibm.com/developerworks/java/library/j-jtp05236/index.html?ca=drs-
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
